@@ -32,6 +32,7 @@ const data = {
 const config = {
   type: 'polarArea',
   data: data,
+  options: {}
 };
 // </block:config>
 
@@ -41,17 +42,14 @@ module.exports = {
 };
 ```
 
-## Example Usage
-
-```javascript
-new Chart(ctx, {
-    data: data,
-    type: 'polarArea',
-    options: options
-});
-```
-
 ## Dataset Properties
+
+Namespaces:
+
+* `data.datasets[index]` - options for this dataset only
+* `options.datasets.polarArea` - options for all polarArea datasets
+* `options.elements.arc` - options for all [arc elements](../configuration/elements.md#arc-configuration)
+* `options` - options for the whole chart
 
 The following options can be included in a polar area chart dataset to configure options for that specific dataset.
 
@@ -66,6 +64,8 @@ The following options can be included in a polar area chart dataset to configure
 | [`hoverBackgroundColor`](#interations) | [`Color`](../general/colors.md) | Yes | Yes | `undefined`
 | [`hoverBorderColor`](#interactions) | [`Color`](../general/colors.md) | Yes | Yes | `undefined`
 | [`hoverBorderWidth`](#interactions) | `number` | Yes | Yes | `undefined`
+
+All these values, if `undefined`, fallback to the scopes described in [option resolution](../general/options)
 
 ### General
 
@@ -115,7 +115,7 @@ These are the customisation options specific to Polar Area charts. These options
 | `animation.animateRotate` | `boolean` | `true` | If true, the chart will animate in with a rotation animation. This property is in the `options.animation` object.
 | `animation.animateScale` | `boolean` | `true` | If true, will animate scaling the chart from the center outwards.
 
-The polar area chart uses the [radialLinear](../axes/radial/linear.mdx) scale. Additional configuration is provided via the scale.
+The polar area chart uses the [radialLinear](../axes/radial/linear.md) scale. Additional configuration is provided via the scale.
 
 ## Default Options
 

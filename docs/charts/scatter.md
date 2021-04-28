@@ -48,7 +48,15 @@ module.exports = {
 
 ## Dataset Properties
 
-The scatter chart supports all of the same properties as the [line chart](./charts/line.mdx#dataset-properties).
+Namespaces:
+
+* `data.datasets[index]` - options for this dataset only
+* `options.datasets.scatter` - options for all scatter datasets
+* `options.elements.line` - options for all [line elements](../configuration/elements.md#line-configuration)
+* `options.elements.point` - options for all [point elements](../configuration/elements.md#point-configuration)
+* `options` - options for the whole chart
+
+The scatter chart supports all of the same properties as the [line chart](./charts/line.md#dataset-properties).
 By default, the scatter chart will override the showLine property of the line chart to `false`.
 
 The index scale is of the type `linear`. This means if you are using the labels array the values have to be numbers or parsable to numbers, the same applies to the object format for the keys.

@@ -1,5 +1,6 @@
 import DatasetController from '../core/core.datasetController';
-import {isNumber, _limitValue} from '../helpers/helpers.math';
+import {isNullOrUndef} from '../helpers';
+import {_limitValue, isNumber} from '../helpers/helpers.math';
 import {_lookupByKey} from '../helpers/helpers.collection';
 
 export default class LineController extends DatasetController {
@@ -29,17 +30,15 @@ export default class LineController extends DatasetController {
     line._decimated = !!_dataset._decimated;
     line.points = points;
 
-    // In resize mode only point locations change, so no need to set the options.
-    if (mode !== 'resize') {
-      const options = me.resolveDatasetElementOptions(mode);
-      if (!me.options.showLine) {
-        options.borderWidth = 0;
-      }
-      me.updateElement(line, undefined, {
-        animated: !animationsDisabled,
-        options
-      }, mode);
+    const options = me.resolveDatasetElementOptions(mode);
+    if (!me.options.showLine) {
+      options.borderWidth = 0;
     }
+    options.segment = me.options.segment;
+    me.updateElement(line, undefined, {
+      animated: !animationsDisabled,
+      options
+    }, mode);
 
     // Update Points
     me.updateElements(points, start, count, mode);
@@ -61,10 +60,12 @@ export default class LineController extends DatasetController {
       const point = points[i];
       const parsed = me.getParsed(i);
       const properties = directUpdate ? point : {};
+      const nullData = isNullOrUndef(parsed.y);
       const x = properties.x = xScale.getPixelForValue(parsed.x, i);
-      const y = properties.y = reset ? yScale.getBasePixel() : yScale.getPixelForValue(_stacked ? me.applyStack(yScale, parsed, _stacked) : parsed.y, i);
-      properties.skip = isNaN(x) || isNaN(y);
+      const y = properties.y = reset || nullData ? yScale.getBasePixel() : yScale.getPixelForValue(_stacked ? me.applyStack(yScale, parsed, _stacked) : parsed.y, i);
+      properties.skip = isNaN(x) || isNaN(y) || nullData;
       properties.stop = i > 0 && (parsed.x - prevParsed.x) > maxGapLength;
+      properties.parsed = parsed;
 
       if (includeOptions) {
         properties.options = sharedOptions || me.resolveDataElementOptions(i, mode);
@@ -140,6 +141,7 @@ function getStartAndCountOfVisiblePoints(meta, points, animationsDisabled) {
     const {iScale, _parsed} = meta;
     const axis = iScale.axis;
     const {min, max, minDefined, maxDefined} = iScale.getUserBounds();
+
     if (minDefined) {
       start = _limitValue(Math.min(
         _lookupByKey(_parsed, iScale.axis, min).lo,

@@ -230,6 +230,17 @@ describe('Chart', function() {
       expect(createChart).toThrow(new Error('"area" is not a registered controller.'));
     });
 
+    it('should initialize the data object', function() {
+      const chart = acquireChart({type: 'bar'});
+      expect(chart.data).toEqual(jasmine.objectContaining({labels: [], datasets: []}));
+      chart.data = {};
+      expect(chart.data).toEqual(jasmine.objectContaining({labels: [], datasets: []}));
+      chart.data = null;
+      expect(chart.data).toEqual(jasmine.objectContaining({labels: [], datasets: []}));
+      chart.data = undefined;
+      expect(chart.data).toEqual(jasmine.objectContaining({labels: [], datasets: []}));
+    });
+
     describe('should disable hover', function() {
       it('when options.hover=false', function() {
         var chart = acquireChart({
@@ -278,6 +289,33 @@ describe('Chart', function() {
 
       await jasmine.triggerMouseEvent(chart, 'mousemove', point);
       expect(chart.getActiveElements()).toEqual([{datasetIndex: 0, index: 1, element: point}]);
+    });
+
+    it('should handle changing the events at runtime', async function() {
+      var chart = acquireChart({
+        type: 'line',
+        data: {
+          labels: ['A', 'B', 'C', 'D'],
+          datasets: [{
+            data: [10, 20, 30, 100]
+          }]
+        },
+        options: {
+          events: ['click']
+        }
+      });
+
+      var point1 = chart.getDatasetMeta(0).data[1];
+      var point2 = chart.getDatasetMeta(0).data[2];
+
+      await jasmine.triggerMouseEvent(chart, 'click', point1);
+      expect(chart.getActiveElements()).toEqual([{datasetIndex: 0, index: 1, element: point1}]);
+
+      chart.options.events = ['mousemove'];
+      chart.update();
+
+      await jasmine.triggerMouseEvent(chart, 'mousemove', point2);
+      expect(chart.getActiveElements()).toEqual([{datasetIndex: 0, index: 2, element: point2}]);
     });
 
     it('should activate element on hover when minPadding pixels outside chart area', async function() {
@@ -413,7 +451,7 @@ describe('Chart', function() {
       });
 
       expect(chart.scales.x.type).toBe('logarithmic');
-      expect(chart.scales.x.options).toBe(chart.options.scales.x);
+      expect(chart.scales.x.options).toEqual(chart.options.scales.x);
       expect(chart.scales.x.options).toEqual(
         jasmine.objectContaining({
           _jasmineCheckA: 'a0',
@@ -423,7 +461,7 @@ describe('Chart', function() {
         }));
 
       expect(chart.scales.y.type).toBe('time');
-      expect(chart.scales.y.options).toBe(chart.options.scales.y);
+      expect(chart.scales.y.options).toEqual(chart.options.scales.y);
       expect(chart.scales.y.options).toEqual(
         jasmine.objectContaining({
           _jasmineCheckA: 'a0',
@@ -480,7 +518,7 @@ describe('Chart', function() {
         responsive: false
       };
       chart.update();
-      expect(chart.options).toEqual(jasmine.objectContaining(options));
+      expect(chart.options).toEqualOptions(options);
     });
   });
 

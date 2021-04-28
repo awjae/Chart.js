@@ -1,7 +1,8 @@
 import Animations from '../core/core.animations';
 import Element from '../core/core.element';
+import {addRoundedRectPath} from '../helpers/helpers.canvas';
 import {each, noop, isNullOrUndef, isArray, _elementsEqual} from '../helpers/helpers.core';
-import {toFont, toPadding} from '../helpers/helpers.options';
+import {toFont, toPadding, toTRBLCorners} from '../helpers/helpers.options';
 import {getRtlAdapter, overrideTextDirection, restoreTextDirection} from '../helpers/helpers.rtl';
 import {distanceBetweenPoints, _limitValue} from '../helpers/helpers.math';
 import {drawPoint} from '../helpers';
@@ -13,9 +14,6 @@ import {drawPoint} from '../helpers';
 const positioners = {
   /**
 	 * Average mode places the tooltip at the average position of the elements shown
-	 * @function Chart.Tooltip.positioners.average
-	 * @param items {object[]} the items being displayed in the tooltip
-	 * @returns {object} tooltip position
 	 */
   average(items) {
     if (!items.length) {
@@ -45,12 +43,12 @@ const positioners = {
 
   /**
 	 * Gets the tooltip position nearest of the item nearest to the event position
-	 * @function Chart.Tooltip.positioners.nearest
-	 * @param items {object[]} the tooltip items
-	 * @param eventPosition {object} the position of the event in canvas coordinates
-	 * @returns {object} the tooltip position
 	 */
   nearest(items, eventPosition) {
+    if (!items.length) {
+      return false;
+    }
+
     let x = eventPosition.x;
     let y = eventPosition.y;
     let minDistance = Number.POSITIVE_INFINITY;
@@ -377,6 +375,8 @@ export class Tooltip extends Element {
     this.width = undefined;
     this.caretX = undefined;
     this.caretY = undefined;
+    // TODO: V4, make this private, rename to `_labelStyles`, and combine with `labelPointStyles`
+    // and `labelTextColors` to create a single variable
     this.labelColors = undefined;
     this.labelPointStyles = undefined;
     this.labelTextColors = undefined;
@@ -709,18 +709,50 @@ export class Tooltip extends Element {
       ctx.fillStyle = labelColors.backgroundColor;
       drawPoint(ctx, drawOptions, centerX, centerY);
     } else {
-      // Fill a white rect so that colours merge nicely if the opacity is < 1
-      ctx.fillStyle = options.multiKeyBackground;
-      ctx.fillRect(rtlHelper.leftForLtr(rtlColorX, boxWidth), colorY, boxWidth, boxHeight);
-
       // Border
-      ctx.lineWidth = 1;
+      ctx.lineWidth = labelColors.borderWidth || 1; // TODO, v4 remove fallback
       ctx.strokeStyle = labelColors.borderColor;
-      ctx.strokeRect(rtlHelper.leftForLtr(rtlColorX, boxWidth), colorY, boxWidth, boxHeight);
+      ctx.setLineDash(labelColors.borderDash || []);
+      ctx.lineDashOffset = labelColors.borderDashOffset || 0;
 
-      // Inner square
-      ctx.fillStyle = labelColors.backgroundColor;
-      ctx.fillRect(rtlHelper.leftForLtr(rtlHelper.xPlus(rtlColorX, 1), boxWidth - 2), colorY + 1, boxWidth - 2, boxHeight - 2);
+      // Fill a white rect so that colours merge nicely if the opacity is < 1
+      const outerX = rtlHelper.leftForLtr(rtlColorX, boxWidth);
+      const innerX = rtlHelper.leftForLtr(rtlHelper.xPlus(rtlColorX, 1), boxWidth - 2);
+      const borderRadius = toTRBLCorners(labelColors.borderRadius);
+
+      if (Object.values(borderRadius).some(v => v !== 0)) {
+        ctx.beginPath();
+        ctx.fillStyle = options.multiKeyBackground;
+        addRoundedRectPath(ctx, {
+          x: outerX,
+          y: colorY,
+          w: boxWidth,
+          h: boxHeight,
+          radius: borderRadius,
+        });
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner square
+        ctx.fillStyle = labelColors.backgroundColor;
+        ctx.beginPath();
+        addRoundedRectPath(ctx, {
+          x: innerX,
+          y: colorY + 1,
+          w: boxWidth - 2,
+          h: boxHeight - 2,
+          radius: borderRadius,
+        });
+        ctx.fill();
+      } else {
+        // Normal rect
+        ctx.fillStyle = options.multiKeyBackground;
+        ctx.fillRect(outerX, colorY, boxWidth, boxHeight);
+        ctx.strokeRect(outerX, colorY, boxWidth, boxHeight);
+        // Inner square
+        ctx.fillStyle = labelColors.backgroundColor;
+        ctx.fillRect(innerX, colorY + 1, boxWidth - 2, boxHeight - 2);
+      }
     }
 
     // restore fillStyle
@@ -1038,9 +1070,9 @@ export class Tooltip extends Element {
 	 * @returns {boolean} True if the position has changed
 	 */
   _positionChanged(active, e) {
-    const me = this;
-    const position = positioners[me.options.position].call(me, active, e);
-    return me.caretX !== position.x || me.caretY !== position.y;
+    const {caretX, caretY, options} = this;
+    const position = positioners[options.position].call(this, active, e);
+    return position !== false && (caretX !== position.x || caretY !== position.y);
   }
 }
 
@@ -1108,7 +1140,7 @@ export default {
     backgroundColor: 'rgba(0,0,0,0.8)',
     titleColor: '#fff',
     titleFont: {
-      style: 'bold',
+      weight: 'bold',
     },
     titleSpacing: 2,
     titleMarginBottom: 6,
@@ -1122,7 +1154,7 @@ export default {
     footerSpacing: 2,
     footerMarginTop: 6,
     footerFont: {
-      style: 'bold',
+      weight: 'bold',
     },
     footerAlign: 'left',
     padding: 6,
@@ -1197,7 +1229,11 @@ export default {
         const options = meta.controller.getStyle(tooltipItem.dataIndex);
         return {
           borderColor: options.borderColor,
-          backgroundColor: options.backgroundColor
+          backgroundColor: options.backgroundColor,
+          borderWidth: options.borderWidth,
+          borderDash: options.borderDash,
+          borderDashOffset: options.borderDashOffset,
+          borderRadius: 0,
         };
       },
       labelTextColor() {

@@ -405,8 +405,7 @@ function _segments(line, target, property) {
   const tpoints = target.points;
   const parts = [];
 
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i];
+  for (const segment of segments) {
     const bounds = getBounds(property, points[segment.start], points[segment.end], segment.loop);
 
     if (!target.segments) {
@@ -422,24 +421,22 @@ function _segments(line, target, property) {
     }
 
     // Get all segments from `target` that intersect the bounds of current segment of `line`
-    const subs = _boundSegments(target, bounds);
+    const targetSegments = _boundSegments(target, bounds);
 
-    for (let j = 0; j < subs.length; ++j) {
-      const sub = subs[j];
-      const subBounds = getBounds(property, tpoints[sub.start], tpoints[sub.end], sub.loop);
+    for (const tgt of targetSegments) {
+      const subBounds = getBounds(property, tpoints[tgt.start], tpoints[tgt.end], tgt.loop);
       const fillSources = _boundSegment(segment, points, subBounds);
 
-      for (let k = 0; k < fillSources.length; k++) {
+      for (const fillSource of fillSources) {
         parts.push({
-          source: fillSources[k],
-          target: sub,
+          source: fillSource,
+          target: tgt,
           start: {
             [property]: _getEdge(bounds, subBounds, 'start', Math.max)
           },
           end: {
             [property]: _getEdge(bounds, subBounds, 'end', Math.min)
           }
-
         });
       }
     }
@@ -468,11 +465,10 @@ function _fill(ctx, cfg) {
   const {line, target, property, color, scale} = cfg;
   const segments = _segments(line, target, property);
 
-  ctx.fillStyle = color;
-  for (let i = 0, ilen = segments.length; i < ilen; ++i) {
-    const {source: src, target: tgt, start, end} = segments[i];
-
+  for (const {source: src, target: tgt, start, end} of segments) {
+    const {style: {backgroundColor = color} = {}} = src;
     ctx.save();
+    ctx.fillStyle = backgroundColor;
 
     clipBounds(ctx, scale, getBounds(property, start, end));
 
@@ -500,7 +496,7 @@ function _fill(ctx, cfg) {
 
 function doFill(ctx, cfg) {
   const {line, target, above, below, area, scale} = cfg;
-  const property = line._loop ? 'angle' : 'x';
+  const property = line._loop ? 'angle' : cfg.axis;
 
   ctx.save();
 
@@ -516,12 +512,25 @@ function doFill(ctx, cfg) {
   ctx.restore();
 }
 
+function drawfill(ctx, source, area) {
+  const target = getTarget(source);
+  const {line, scale, axis} = source;
+  const lineOpts = line.options;
+  const fillOption = lineOpts.fill;
+  const color = lineOpts.backgroundColor;
+  const {above = color, below = color} = fillOption || {};
+  if (target && line.points.length) {
+    clipArea(ctx, area);
+    doFill(ctx, {line, target, above, below, area, scale, axis});
+    unclipArea(ctx);
+  }
+}
+
 export default {
   id: 'filler',
 
   afterDatasetsUpdate(chart, _args, options) {
     const count = (chart.data.datasets || []).length;
-    const propagate = options.propagate;
     const sources = [];
     let meta, i, line, source;
 
@@ -536,8 +545,9 @@ export default {
           index: i,
           fill: decodeFill(line, i, count),
           chart,
+          axis: meta.controller.options.indexAxis,
           scale: meta.vScale,
-          line
+          line,
         };
       }
 
@@ -551,47 +561,52 @@ export default {
         continue;
       }
 
-      source.fill = resolveTarget(sources, i, propagate);
+      source.fill = resolveTarget(sources, i, options.propagate);
     }
   },
 
-  beforeDatasetsDraw(chart) {
+  beforeDraw(chart, _args, options) {
+    const draw = options.drawTime === 'beforeDraw';
     const metasets = chart.getSortedVisibleDatasetMetas();
     const area = chart.chartArea;
-    let i, meta;
+    for (let i = metasets.length - 1; i >= 0; --i) {
+      const source = metasets[i].$filler;
+      if (!source) {
+        continue;
+      }
 
-    for (i = metasets.length - 1; i >= 0; --i) {
-      meta = metasets[i].$filler;
-
-      if (meta) {
-        meta.line.updateControlPoints(area);
+      source.line.updateControlPoints(area);
+      if (draw) {
+        drawfill(chart.ctx, source, area);
       }
     }
   },
 
-  beforeDatasetDraw(chart, args) {
-    const area = chart.chartArea;
-    const ctx = chart.ctx;
-    const source = args.meta.$filler;
-
-    if (!source || source.fill === false) {
+  beforeDatasetsDraw(chart, _args, options) {
+    if (options.drawTime !== 'beforeDatasetsDraw') {
       return;
     }
-
-    const target = getTarget(source);
-    const {line, scale} = source;
-    const lineOpts = line.options;
-    const fillOption = lineOpts.fill;
-    const color = lineOpts.backgroundColor;
-    const {above = color, below = color} = fillOption || {};
-    if (target && line.points.length) {
-      clipArea(ctx, area);
-      doFill(ctx, {line, target, above, below, area, scale});
-      unclipArea(ctx);
+    const metasets = chart.getSortedVisibleDatasetMetas();
+    for (let i = metasets.length - 1; i >= 0; --i) {
+      const source = metasets[i].$filler;
+      if (source) {
+        drawfill(chart.ctx, source, chart.chartArea);
+      }
     }
   },
 
+  beforeDatasetDraw(chart, args, options) {
+    const source = args.meta.$filler;
+
+    if (!source || source.fill === false || options.drawTime !== 'beforeDatasetDraw') {
+      return;
+    }
+
+    drawfill(chart.ctx, source, chart.chartArea);
+  },
+
   defaults: {
-    propagate: true
+    propagate: true,
+    drawTime: 'beforeDatasetDraw'
   }
 };

@@ -25,7 +25,13 @@ export interface ScriptableContext<TType extends ChartType> {
   raw: unknown;
 }
 
-export type Scriptable<T, TContext> = T | ((ctx: TContext) => T);
+export interface ScriptableLineSegmentContext {
+  type: 'segment',
+  p0: PointElement,
+  p1: PointElement
+}
+
+export type Scriptable<T, TContext> = T | ((ctx: TContext, options: AnyObject) => T);
 export type ScriptableOptions<T, TContext> = { [P in keyof T]: Scriptable<T[P], TContext> };
 export type ScriptableAndArray<T, TContext> = readonly T[] | Scriptable<T, TContext>;
 export type ScriptableAndArrayOptions<T, TContext> = { [P in keyof T]: ScriptableAndArray<T[P], TContext> };
@@ -1604,6 +1610,13 @@ export interface ArcProps {
   circumference: number;
 }
 
+export interface ArcBorderRadius {
+  outerStart: number;
+  outerEnd: number;
+  innerStart: number;
+  innerEnd: number;
+}
+
 export interface ArcOptions extends CommonElementOptions {
   /**
    * Arc stroke alignment.
@@ -1613,6 +1626,11 @@ export interface ArcOptions extends CommonElementOptions {
    * Arc offset (in pixels).
    */
   offset: number;
+  /**
+   * Sets the border radius for arcs
+   * @default 0
+   */
+  borderRadius: number | ArcBorderRadius;
 }
 
 export interface ArcHoverOptions extends CommonHoverOptions {
@@ -1671,6 +1689,16 @@ export interface LineOptions extends CommonElementOptions {
    * @default false
    */
   stepped: 'before' | 'after' | 'middle' | boolean;
+
+  segment: {
+    backgroundColor: Scriptable<Color|undefined, ScriptableLineSegmentContext>,
+    borderColor: Scriptable<Color|undefined, ScriptableLineSegmentContext>,
+    borderCapStyle: Scriptable<CanvasLineCap|undefined, ScriptableLineSegmentContext>;
+    borderDash: Scriptable<number[]|undefined, ScriptableLineSegmentContext>;
+    borderDashOffset: Scriptable<number|undefined, ScriptableLineSegmentContext>;
+    borderJoinStyle: Scriptable<CanvasLineJoin|undefined, ScriptableLineSegmentContext>;
+    borderWidth: Scriptable<number|undefined, ScriptableLineSegmentContext>;
+  };
 }
 
 export interface LineHoverOptions extends CommonHoverOptions {
@@ -1802,6 +1830,7 @@ export interface PointElement<T extends PointProps = PointProps, O extends Point
   extends Element<T, O>,
     VisualElement {
   readonly skip: boolean;
+  readonly parsed: CartesianParsedData;
 }
 
 export const PointElement: ChartComponent & {
@@ -1944,6 +1973,7 @@ export type DecimationOptions = LttbDecimationOptions | MinMaxDecimationOptions;
 
 export const Filler: Plugin;
 export interface FillerOptions {
+  drawTime: 'beforeDatasetDraw' | 'beforeDatasetsDraw';
   propagate: boolean;
 }
 
@@ -1980,6 +2010,12 @@ export interface LegendItem {
   text: string;
 
   /**
+   * Border radius of the legend box
+   * @since 3.1.0
+   */
+  borderRadius?: number | BorderRadius;
+
+  /**
    * Index of the associated dataset
    */
   datasetIndex: number;
@@ -1988,6 +2024,12 @@ export interface LegendItem {
    * Fill style of the legend box
    */
   fillStyle?: Color;
+
+  /**
+   * Font color for the text
+   * Defaults to LegendOptions.labels.color
+   */
+  fontColor?: Color;
 
   /**
    * If true, this item represents a hidden dataset. Label will be rendered with a strike-through effect
@@ -2208,15 +2250,43 @@ export interface TitleOptions {
   text: string | string[];
 }
 
-export type TooltipAlignment = 'start' | 'center' | 'end';
+export type TooltipXAlignment = 'left' | 'center' | 'right';
+export type TooltipYAlignment = 'top' | 'center' | 'bottom';
+export interface TooltipLabelStyle {
+  borderColor: Color;
+  backgroundColor: Color;
 
+  /**
+   * Width of border line
+   * @since 3.1.0
+   */
+  borderWidth?: number;
+
+  /**
+   * Border dash
+   * @since 3.1.0
+   */
+  borderDash?: [number, number];
+
+  /**
+   * Border dash offset
+   * @since 3.1.0
+   */
+  borderDashOffset?: number;
+
+  /**
+   * borderRadius
+   * @since 3.1.0
+   */
+  borderRadius?: number | BorderRadius;
+}
 export interface TooltipModel<TType extends ChartType> {
   // The items that we are rendering in the tooltip. See Tooltip Item Interface section
   dataPoints: TooltipItem<TType>[];
 
   // Positioning
-  xAlign: TooltipAlignment;
-  yAlign: TooltipAlignment;
+  xAlign: TooltipXAlignment;
+  yAlign: TooltipYAlignment;
 
   // X and Y properties are the top left of the tooltip
   x: number;
@@ -2247,8 +2317,8 @@ export interface TooltipModel<TType extends ChartType> {
   // lines of text that form the footer
   footer: string[];
 
-  // colors to render for each item in body[]. This is the color of the squares in the tooltip
-  labelColors: Color[];
+  // Styles to render for each item in body[]. This is the styling of the squares in the tooltip
+  labelColors: TooltipLabelStyle[];
   labelTextColors: Color[];
   labelPointStyles: { pointStyle: PointStyle; rotation: number }[];
 
@@ -2261,7 +2331,7 @@ export interface TooltipModel<TType extends ChartType> {
 
 export const Tooltip: Plugin & {
   readonly positioners: {
-    [key: string]: (items: readonly Element[], eventPosition: { x: number; y: number }) => { x: number; y: number };
+    [key: string]: (items: readonly ActiveElement[], eventPosition: { x: number; y: number }) => { x: number; y: number } | false;
   };
 
   getActiveElements(): ActiveElement[];
@@ -2284,7 +2354,7 @@ export interface TooltipCallbacks<
   label(this: Model, tooltipItem: Item): string | string[];
   afterLabel(this: Model, tooltipItem: Item): string | string[];
 
-  labelColor(this: Model, tooltipItem: Item): { borderColor: Color; backgroundColor: Color };
+  labelColor(this: Model, tooltipItem: Item): TooltipLabelStyle;
   labelTextColor(this: Model, tooltipItem: Item): Color;
   labelPointStyle(this: Model, tooltipItem: Item): { pointStyle: PointStyle; rotation: number };
 
@@ -2331,9 +2401,9 @@ export interface TooltipOptions<TType extends ChartType> extends CoreInteraction
    */
   enabled: Scriptable<boolean, ScriptableTooltipContext<TType>>;
   /**
-   *   See custom tooltip section.
+   *   See external tooltip section.
    */
-  custom(this: TooltipModel<TType>, args: { chart: Chart; tooltip: TooltipModel<TType> }): void;
+  external(this: TooltipModel<TType>, args: { chart: Chart; tooltip: TooltipModel<TType> }): void;
   /**
    * The mode for positioning the tooltip
    */
@@ -2342,8 +2412,8 @@ export interface TooltipOptions<TType extends ChartType> extends CoreInteraction
   /**
    * Override the tooltip alignment calculations
    */
-  xAlign: Scriptable<TooltipAlignment, ScriptableTooltipContext<TType>>;
-  yAlign: Scriptable<TooltipAlignment, ScriptableTooltipContext<TType>>;
+  xAlign: Scriptable<TooltipXAlignment, ScriptableTooltipContext<TType>>;
+  yAlign: Scriptable<TooltipYAlignment, ScriptableTooltipContext<TType>>;
 
   /**
    * Sort tooltip items.
@@ -2364,7 +2434,7 @@ export interface TooltipOptions<TType extends ChartType> extends CoreInteraction
   titleColor: Scriptable<Color, ScriptableTooltipContext<TType>>;
   /**
    * See Fonts
-   * @default {style: 'bold'}
+   * @default {weight: 'bold'}
    */
   titleFont: Scriptable<FontSpec, ScriptableTooltipContext<TType>>;
   /**
@@ -2419,7 +2489,7 @@ export interface TooltipOptions<TType extends ChartType> extends CoreInteraction
   footerColor: Scriptable<Color, ScriptableTooltipContext<TType>>;
   /**
    * See Fonts
-   * @default {style: 'bold'}
+   * @default {weight: 'bold'}
    */
   footerFont: Scriptable<FontSpec, ScriptableTooltipContext<TType>>;
   /**
@@ -2624,9 +2694,20 @@ export interface GridLineOptions {
 
 export interface TickOptions {
   /**
+   * Color of label backdrops.
+   * @default 'rgba(255, 255, 255, 0.75)'
+   */
+  backdropColor: Scriptable<Color, ScriptableScaleContext>;
+  /**
+   * Padding of tick backdrop.
+   * @default 2
+   */
+  backdropPadding: number | ChartArea;
+
+  /**
    * Returns the string representation of the tick value as it should be displayed on the chart. See callback.
    */
-  callback: (tickValue: number | string, index: number, ticks: Tick[]) => string;
+  callback: (tickValue: number | string, index: number, ticks: Tick[]) => string | number | null | undefined;
   /**
    * If true, show tick labels.
    * @default true
@@ -2645,6 +2726,11 @@ export interface TickOptions {
    * Sets the offset of the tick labels from the axis
    */
   padding: number;
+  /**
+   * If true, draw a background behind the tick labels.
+   * @default false
+   */
+  showLabelBackdrop: Scriptable<boolean, ScriptableScaleContext>;
   /**
    * The color of the stroke around the text.
    * @default undefined
@@ -2795,14 +2881,16 @@ export type LinearScaleOptions = CartesianScaleOptions & {
 
   /**
    * Adjustment used when calculating the maximum data value.
-   * @see https://www.chartjs.org/docs/next/axes/cartesian/linear#axis-range-settings
    */
   suggestedMin?: number;
   /**
    * Adjustment used when calculating the minimum data value.
-   * @see https://www.chartjs.org/docs/next/axes/cartesian/linear#axis-range-settings
    */
   suggestedMax?: number;
+  /**
+  * Percentage (string ending with %) or amount (number) for added room in the scale range above and below data.
+  */
+  grace?: string | number;
 
   ticks: {
     /**
@@ -2822,7 +2910,6 @@ export type LinearScaleOptions = CartesianScaleOptions & {
 
     /**
      * User defined fixed step size for the scale
-     * @see https://www.chartjs.org/docs/next/axes/cartesian/linear#step-size
      */
     stepSize: number;
 
@@ -2843,12 +2930,10 @@ export type LogarithmicScaleOptions = CartesianScaleOptions & {
 
   /**
    * Adjustment used when calculating the maximum data value.
-   * @see https://www.chartjs.org/docs/next/axes/cartesian/linear#axis-range-settings
    */
   suggestedMin?: number;
   /**
    * Adjustment used when calculating the minimum data value.
-   * @see https://www.chartjs.org/docs/next/axes/cartesian/linear#axis-range-settings
    */
   suggestedMax?: number;
 
@@ -2871,7 +2956,6 @@ export type TimeScaleOptions = CartesianScaleOptions & {
    * Scale boundary strategy (bypassed by min/max time options)
    * - `data`: make sure data are fully visible, ticks outside are removed
    * - `ticks`: make sure ticks are fully visible, data outside are truncated
-   * @see https://www.chartjs.org/docs/next/axes/cartesian/time#scale-bounds
    * @since 2.7.0
    * @default 'data'
    */
@@ -2887,7 +2971,6 @@ export type TimeScaleOptions = CartesianScaleOptions & {
   time: {
     /**
      * Custom parser for dates.
-     * @see https://www.chartjs.org/docs/next/axes/cartesian/time#parser
      */
     parser: string | ((v: unknown) => number);
     /**
@@ -2902,7 +2985,6 @@ export type TimeScaleOptions = CartesianScaleOptions & {
     isoWeekday: false | number;
     /**
      * Sets how different time units are displayed.
-     * @see https://www.chartjs.org/docs/next/axes/cartesian/time#display-formats
      */
     displayFormats: {
       [key: string]: string;
@@ -2938,7 +3020,6 @@ export type TimeScaleOptions = CartesianScaleOptions & {
      * @see https://github.com/chartjs/Chart.js/pull/4507
      * @since 2.7.0
      * @default 'auto'
-     * @see https://www.chartjs.org/docs/next/axes/cartesian/time#ticks-source
      */
     source: 'labels' | 'auto' | 'data';
   };
@@ -3032,7 +3113,6 @@ export type RadialLinearScaleOptions = CoreScaleOptions & {
      */
     color: Scriptable<Color, ScriptableScaleContext>;
     /**
-     * @see https://www.chartjs.org/docs/next/axes/general/fonts.md
      */
     font: Scriptable<FontSpec, ScriptableScaleContext>;
 
@@ -3052,17 +3132,6 @@ export type RadialLinearScaleOptions = CoreScaleOptions & {
   suggestedMin: number;
 
   ticks: TickOptions & {
-    /**
-     * Color of label backdrops.
-     * @default 'rgba(255, 255, 255, 0.75)'
-     */
-    backdropColor: Scriptable<Color, ScriptableScaleContext>;
-    /**
-     * Padding of label backdrop.
-     * @default 2
-     */
-    backdropPadding: number | ChartArea;
-
     /**
      * The Intl.NumberFormat options used by the default label formatter
      */
@@ -3088,12 +3157,6 @@ export type RadialLinearScaleOptions = CoreScaleOptions & {
      * User defined number of ticks
      */
     count: number;
-
-    /**
-     * If true, draw a background behind the tick labels.
-     * @default true
-     */
-    showLabelBackdrop: Scriptable<boolean, ScriptableScaleContext>;
   };
 };
 

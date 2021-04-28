@@ -539,13 +539,13 @@ describe('Chart.DatasetController', function() {
     });
 
     expect(chart._stacks).toEqual({
-      'x.y.1.bar': {
-        0: {0: 1, 2: 3},
-        1: {0: 10, 2: 30}
+      'x.y.1': {
+        0: {0: 1, 2: 3, _top: 2, _bottom: null},
+        1: {0: 10, 2: 30, _top: 2, _bottom: null}
       },
-      'x.y.2.bar': {
-        0: {1: 2},
-        1: {1: 20}
+      'x.y.2': {
+        0: {1: 2, _top: 1, _bottom: null},
+        1: {1: 20, _top: 1, _bottom: null}
       }
     });
 
@@ -553,13 +553,13 @@ describe('Chart.DatasetController', function() {
     chart.update();
 
     expect(chart._stacks).toEqual({
-      'x.y.1.bar': {
-        0: {0: 1},
-        1: {0: 10}
+      'x.y.1': {
+        0: {0: 1, _top: 2, _bottom: null},
+        1: {0: 10, _top: 2, _bottom: null}
       },
-      'x.y.2.bar': {
-        0: {1: 2, 2: 3},
-        1: {1: 20, 2: 30}
+      'x.y.2': {
+        0: {1: 2, 2: 3, _top: 2, _bottom: null},
+        1: {1: 20, 2: 30, _top: 2, _bottom: null}
       }
     });
   });
@@ -583,13 +583,13 @@ describe('Chart.DatasetController', function() {
     });
 
     expect(chart._stacks).toEqual({
-      'x.y.1.bar': {
-        0: {0: 1, 2: 3},
-        1: {0: 10, 2: 30}
+      'x.y.1': {
+        0: {0: 1, 2: 3, _top: 2, _bottom: null},
+        1: {0: 10, 2: 30, _top: 2, _bottom: null}
       },
-      'x.y.2.bar': {
-        0: {1: 2},
-        1: {1: 20}
+      'x.y.2': {
+        0: {1: 2, _top: 1, _bottom: null},
+        1: {1: 20, _top: 1, _bottom: null}
       }
     });
 
@@ -597,13 +597,13 @@ describe('Chart.DatasetController', function() {
     chart.update();
 
     expect(chart._stacks).toEqual({
-      'x.y.1.bar': {
-        0: {0: 1, 2: 4},
-        1: {0: 10}
+      'x.y.1': {
+        0: {0: 1, 2: 4, _top: 2, _bottom: null},
+        1: {0: 10, _top: 2, _bottom: null}
       },
-      'x.y.2.bar': {
-        0: {1: 2},
-        1: {1: 20}
+      'x.y.2': {
+        0: {1: 2, _top: 1, _bottom: null},
+        1: {1: 20, _top: 1, _bottom: null}
       }
     });
   });
@@ -697,6 +697,29 @@ describe('Chart.DatasetController', function() {
 
     // Reset old shared state
     Chart.defaults.parsing = originalDefault;
+  });
+
+  it('should not fail to produce stacks when parsing is off', function() {
+    var chart = acquireChart({
+      type: 'line',
+      data: {
+        datasets: [{
+          data: [{x: 1, y: 10}]
+        }, {
+          data: [{x: 1, y: 20}]
+        }]
+      },
+      options: {
+        parsing: false,
+        scales: {
+          x: {stacked: true},
+          y: {stacked: true}
+        }
+      }
+    });
+
+    var meta = chart.getDatasetMeta(0);
+    expect(meta._parsed[0]._stacks).toEqual(jasmine.objectContaining({y: {0: 10, 1: 20, _top: null, _bottom: null}}));
   });
 
   describe('resolveDataElementOptions', function() {

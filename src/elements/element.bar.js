@@ -1,6 +1,7 @@
 import Element from '../core/core.element';
+import {isObject} from '../helpers';
+import {addRoundedRectPath} from '../helpers/helpers.canvas';
 import {toTRBL, toTRBLCorners} from '../helpers/helpers.options';
-import {PI, HALF_PI} from '../helpers/helpers.math';
 
 /**
  * Helper function to get the bounds of the bar regardless of the orientation
@@ -83,16 +84,21 @@ function parseBorderWidth(bar, maxW, maxH) {
 }
 
 function parseBorderRadius(bar, maxW, maxH) {
+  const {enableBorderRadius} = bar.getProps(['enableBorderRadius']);
   const value = bar.options.borderRadius;
   const o = toTRBLCorners(value);
   const maxR = Math.min(maxW, maxH);
   const skip = parseBorderSkipped(bar);
 
+  // If the value is an object, assume the user knows what they are doing
+  // and apply as directed.
+  const enableBorder = enableBorderRadius || isObject(value);
+
   return {
-    topLeft: skipOrLimit(skip.top || skip.left, o.topLeft, 0, maxR),
-    topRight: skipOrLimit(skip.top || skip.right, o.topRight, 0, maxR),
-    bottomLeft: skipOrLimit(skip.bottom || skip.left, o.bottomLeft, 0, maxR),
-    bottomRight: skipOrLimit(skip.bottom || skip.right, o.bottomRight, 0, maxR)
+    topLeft: skipOrLimit(!enableBorder || skip.top || skip.left, o.topLeft, 0, maxR),
+    topRight: skipOrLimit(!enableBorder || skip.top || skip.right, o.topRight, 0, maxR),
+    bottomLeft: skipOrLimit(!enableBorder || skip.bottom || skip.left, o.bottomLeft, 0, maxR),
+    bottomRight: skipOrLimit(!enableBorder || skip.bottom || skip.right, o.bottomRight, 0, maxR)
   };
 }
 
@@ -139,39 +145,6 @@ function inRange(bar, x, y, useFinalPosition) {
 
 function hasRadius(radius) {
   return radius.topLeft || radius.topRight || radius.bottomLeft || radius.bottomRight;
-}
-
-/**
- * Add a path of a rectangle with rounded corners to the current sub-path
- * @param {CanvasRenderingContext2D} ctx Context
- * @param {*} rect Bounding rect
- */
-function addRoundedRectPath(ctx, rect) {
-  const {x, y, w, h, radius} = rect;
-
-  // top left arc
-  ctx.arc(x + radius.topLeft, y + radius.topLeft, radius.topLeft, -HALF_PI, PI, true);
-
-  // line from top left to bottom left
-  ctx.lineTo(x, y + h - radius.bottomLeft);
-
-  // bottom left arc
-  ctx.arc(x + radius.bottomLeft, y + h - radius.bottomLeft, radius.bottomLeft, PI, HALF_PI, true);
-
-  // line from bottom left to bottom right
-  ctx.lineTo(x + w - radius.bottomRight, y + h);
-
-  // bottom right arc
-  ctx.arc(x + w - radius.bottomRight, y + h - radius.bottomRight, radius.bottomRight, HALF_PI, 0, true);
-
-  // line from bottom right to top right
-  ctx.lineTo(x + w, y + radius.topRight);
-
-  // top right arc
-  ctx.arc(x + w - radius.topRight, y + radius.topRight, radius.topRight, 0, -HALF_PI, true);
-
-  // line from top right to top left
-  ctx.lineTo(x + radius.topLeft, y);
 }
 
 /**
@@ -257,6 +230,7 @@ BarElement.defaults = {
   borderSkipped: 'start',
   borderWidth: 0,
   borderRadius: 0,
+  enableBorderRadius: true,
   pointStyle: undefined
 };
 

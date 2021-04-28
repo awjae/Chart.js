@@ -111,7 +111,7 @@ function isStacked(scale, meta) {
 }
 
 function getStackKey(indexScale, valueScale, meta) {
-  return indexScale.id + '.' + valueScale.id + '.' + meta.stack + '.' + meta.type;
+  return `${indexScale.id}.${valueScale.id}.${meta.stack || meta.type}`;
 }
 
 function getUserBounds(scale) {
@@ -125,6 +125,17 @@ function getUserBounds(scale) {
 function getOrCreateStack(stacks, stackKey, indexValue) {
   const subStack = stacks[stackKey] || (stacks[stackKey] = {});
   return subStack[indexValue] || (subStack[indexValue] = {});
+}
+
+function getLastIndexInStack(stack, vScale, positive) {
+  for (const meta of vScale.getMatchingVisibleMetas('bar').reverse()) {
+    const value = stack[meta.index];
+    if ((positive && value > 0) || (!positive && value < 0)) {
+      return meta.index;
+    }
+  }
+
+  return null;
 }
 
 function updateStacks(controller, parsed) {
@@ -143,6 +154,9 @@ function updateStacks(controller, parsed) {
     const itemStacks = item._stacks || (item._stacks = {});
     stack = itemStacks[vAxis] = getOrCreateStack(stacks, key, index);
     stack[datasetIndex] = value;
+
+    stack._top = getLastIndexInStack(stack, vScale, true);
+    stack._bottom = getLastIndexInStack(stack, vScale, false);
   }
 }
 
@@ -392,6 +406,7 @@ export default class DatasetController {
     if (me._parsing === false) {
       meta._parsed = data;
       meta._sorted = true;
+      parsed = data;
     } else {
       if (isArray(data[start])) {
         parsed = me.parseArrayData(meta, data, start, count);

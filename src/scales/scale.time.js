@@ -1,5 +1,5 @@
 import adapters from '../core/core.adapters';
-import {isFinite, isNullOrUndef, mergeIf, valueOrDefault} from '../helpers/helpers.core';
+import {callback as call, isFinite, isNullOrUndef, mergeIf, valueOrDefault} from '../helpers/helpers.core';
 import {toRadians, isNumber, _limitValue} from '../helpers/helpers.math';
 import Scale from '../core/core.scale';
 import {_arrayUnique, _filterBetween, _lookup} from '../helpers/helpers.collection';
@@ -48,8 +48,7 @@ function parse(scale, input) {
   }
 
   const adapter = scale._adapter;
-  const options = scale.options.time;
-  const {parser, round, isoWeekday} = options;
+  const {parser, round, isoWeekday} = scale._parseOpts;
   let value = input;
 
   if (typeof parser === 'function') {
@@ -217,6 +216,7 @@ export default class TimeScale extends Scale {
     this._majorUnit = undefined;
     this._offsets = {};
     this._normalized = false;
+    this._parseOpts = undefined;
   }
 
   init(scaleOpts, opts) {
@@ -228,6 +228,12 @@ export default class TimeScale extends Scale {
     // when loading the scale (adapters are loaded afterward), so let's populate
     // missing formats on update
     mergeIf(time.displayFormats, adapter.formats());
+
+    this._parseOpts = {
+      parser: time.parser,
+      round: time.round,
+      isoWeekday: time.isoWeekday
+    };
 
     super.init(scaleOpts);
 
@@ -468,7 +474,7 @@ export default class TimeScale extends Scale {
     const major = majorUnit && majorFormat && tick && tick.major;
     const label = me._adapter.format(time, format || (major ? majorFormat : minorFormat));
     const formatter = options.ticks.callback;
-    return formatter ? formatter(label, index, ticks) : label;
+    return formatter ? call(formatter, [label, index, ticks], me) : label;
   }
 
   /**

@@ -2,7 +2,6 @@ import {isNullOrUndef} from '../helpers/helpers.core';
 import {almostEquals, almostWhole, niceNum, _decimalPlaces, _setMinAndMaxByKey, sign} from '../helpers/helpers.math';
 import Scale from '../core/core.scale';
 import {formatNumber} from '../helpers/helpers.intl';
-import {_addGrace} from '../helpers/helpers.options';
 
 /**
  * Generate a set of linear ticks for an axis
@@ -98,12 +97,12 @@ function generateTicks(generationOptions, dataRange) {
   let j = 0;
   if (minDefined) {
     ticks.push({value: min});
-    // If the niceMin is smaller than min, skip it
-    if (niceMin < min) {
+    // If the niceMin is smaller or equal to min, skip it
+    if (niceMin <= min) {
       j++;
     }
     // If the next nice tick is close to min, skip that too
-    if (almostWhole(Math.round((niceMin + j * spacing) * factor) / factor / min, spacing / 1000)) {
+    if (almostEquals(Math.round((niceMin + j * spacing) * factor) / factor, min, spacing / 10)) {
       j++;
     }
   }
@@ -114,7 +113,7 @@ function generateTicks(generationOptions, dataRange) {
 
   if (maxDefined) {
     // If the previous tick is close to max, replace it with max, else add max
-    if (almostWhole(ticks[ticks.length - 1].value / max, spacing / 1000)) {
+    if (almostEquals(ticks[ticks.length - 1].value, max, spacing / 10)) {
       ticks[ticks.length - 1].value = max;
     } else {
       ticks.push({value: max});
@@ -232,7 +231,8 @@ export default class LinearScaleBase extends Scale {
       step: tickOpts.stepSize,
       count: tickOpts.count,
     };
-    const ticks = generateTicks(numericGeneratorOptions, _addGrace(me, opts.grace));
+    const dataRange = me._range || me;
+    const ticks = generateTicks(numericGeneratorOptions, dataRange);
 
     // At this point, we need to update our max and min given the tick values,
     // since we probably have expanded the range of the scale

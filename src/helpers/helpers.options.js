@@ -3,6 +3,7 @@ import {isArray, isObject, toDimension, valueOrDefault} from './helpers.core';
 import {toFontString} from './helpers.canvas';
 
 const LINE_HEIGHT = new RegExp(/^(normal|(\d+(?:\.\d+)?)(px|em|%)?)$/);
+const FONT_STYLE = new RegExp(/^(normal|italic|initial|inherit|unset|(oblique( -?[0-9]?[0-9]deg)?))$/);
 
 /**
  * @alias Chart.helpers.options
@@ -39,7 +40,7 @@ export function toLineHeight(value, size) {
 
 const numberOrZero = v => +v || 0;
 
-function readValueToProps(value, props) {
+export function _readValueToProps(value, props) {
   const ret = {};
   const objProps = isObject(props);
   const keys = objProps ? Object.keys(props) : props;
@@ -64,7 +65,7 @@ function readValueToProps(value, props) {
  * @since 3.0.0
  */
 export function toTRBL(value) {
-  return readValueToProps(value, {top: 'y', right: 'x', bottom: 'y', left: 'x'});
+  return _readValueToProps(value, {top: 'y', right: 'x', bottom: 'y', left: 'x'});
 }
 
 /**
@@ -75,7 +76,7 @@ export function toTRBL(value) {
  * @since 3.0.0
  */
 export function toTRBLCorners(value) {
-  return readValueToProps(value, ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']);
+  return _readValueToProps(value, ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']);
 }
 
 /**
@@ -95,6 +96,7 @@ export function toPadding(value) {
   return obj;
 }
 
+
 /**
  * Parses font options and returns the font object.
  * @param {object} options - A object that contains font options to be parsed.
@@ -111,12 +113,17 @@ export function toFont(options, fallback) {
   if (typeof size === 'string') {
     size = parseInt(size, 10);
   }
+  let style = valueOrDefault(options.style, fallback.style);
+  if (style && !('' + style).match(FONT_STYLE)) {
+    console.warn('Invalid font style specified: "' + style + '"');
+    style = '';
+  }
 
   const font = {
     family: valueOrDefault(options.family, fallback.family),
     lineHeight: toLineHeight(valueOrDefault(options.lineHeight, fallback.lineHeight), size),
     size,
-    style: valueOrDefault(options.style, fallback.style),
+    style,
     weight: valueOrDefault(options.weight, fallback.weight),
     string: ''
   };

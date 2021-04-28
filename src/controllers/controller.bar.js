@@ -266,12 +266,15 @@ export default class BarController extends DatasetController {
     me.updateSharedOptions(sharedOptions, mode, firstOpts);
 
     for (let i = start; i < start + count; i++) {
-      const vpixels = reset ? {base, head: base} : me._calculateBarValuePixels(i);
+      const parsed = me.getParsed(i);
+      const vpixels = reset || isNullOrUndef(parsed[vScale.axis]) ? {base, head: base} : me._calculateBarValuePixels(i);
       const ipixels = me._calculateBarIndexPixels(i, ruler);
+      const stack = (parsed._stacks || {})[vScale.axis];
 
       const properties = {
         horizontal,
         base: vpixels.base,
+        enableBorderRadius: !stack || isFloatBar(parsed._custom) || (me.index === stack._top || me.index === stack._bottom),
         x: horizontal ? vpixels.head : ipixels.center,
         y: horizontal ? ipixels.center : vpixels.head,
         height: horizontal ? ipixels.size : undefined,
@@ -351,11 +354,12 @@ export default class BarController extends DatasetController {
 	 * Returns the stack index for the given dataset based on groups and bar visibility.
 	 * @param {number} [datasetIndex] - The dataset index
 	 * @param {string} [name] - The stack name to find
+   * @param {number} [dataIndex]
 	 * @returns {number} The stack index
 	 * @private
 	 */
-  _getStackIndex(datasetIndex, name) {
-    const stacks = this._getStacks(datasetIndex);
+  _getStackIndex(datasetIndex, name, dataIndex) {
+    const stacks = this._getStacks(datasetIndex, dataIndex);
     const index = (name !== undefined)
       ? stacks.indexOf(name)
       : -1; // indexOf returns -1 if element is not present
@@ -474,15 +478,16 @@ export default class BarController extends DatasetController {
     const me = this;
     const scale = ruler.scale;
     const options = me.options;
+    const skipNull = options.skipNull;
     const maxBarThickness = valueOrDefault(options.maxBarThickness, Infinity);
     let center, size;
     if (ruler.grouped) {
-      const stackCount = options.skipNull ? me._getStackCount(index) : ruler.stackCount;
+      const stackCount = skipNull ? me._getStackCount(index) : ruler.stackCount;
       const range = options.barThickness === 'flex'
         ? computeFlexCategoryTraits(index, ruler, options, stackCount)
         : computeFitCategoryTraits(index, ruler, options, stackCount);
 
-      const stackIndex = me._getStackIndex(me.index, me._cachedMeta.stack);
+      const stackIndex = me._getStackIndex(me.index, me._cachedMeta.stack, skipNull ? index : undefined);
       center = range.start + (range.chunk * stackIndex) + (range.chunk / 2);
       size = Math.min(maxBarThickness, range.chunk * range.ratio);
     } else {

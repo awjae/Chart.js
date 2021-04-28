@@ -6,14 +6,14 @@ Padding values in Chart options can be supplied in couple of different formats.
 
 If this value is a number, it is applied to all sides (left, top, right, bottom).
 
-For exmaple, defining a 20px padding to all sides of chart:
+For example, defining a 20px padding to all sides of chart:
 
 ```javascript
 let chart = new Chart(ctx, {
     type: 'line',
     data: data,
     options: {
-        layout:
+        layout: {
             padding: 20
         }
     }
@@ -45,7 +45,7 @@ let chart = new Chart(ctx, {
 
 This is a shorthand for defining left/right and top/bottom to same values.
 
-For example, 10px left / right and 4px top / bottom padding on a Radial Linear Axis [tick backdropPadding](../axes/radial/linear#tick-configuration):
+For example, 10px left / right and 4px top / bottom padding on a Radial Linear Axis [tick backdropPadding](/axes/radial/linear.html#linear-radial-axis-specific-tick-options):
 
 ```javascript
 let chart = new Chart(ctx, {

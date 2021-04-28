@@ -1,10 +1,10 @@
 # Interactions
 
-Namespace: `options.interaction`, the global interaction configuration is at `Chart.defaults.interaction`. To configure which events trigger chart interactions, see [events](events.md#events).
+Namespace: `options.interaction`, the global interaction configuration is at `Chart.defaults.interaction`. To configure which events trigger chart interactions, see [events](#events).
 
 | Name | Type | Default | Description
 | ---- | ---- | ------- | -----------
-| `mode` | `string` | `'nearest'` | Sets which elements appear in the interaction. See [Interaction Modes](modes.md#interaction-modes) for details.
+| `mode` | `string` | `'nearest'` | Sets which elements appear in the interaction. See [Interaction Modes](#modes) for details.
 | `intersect` | `boolean` | `true` | if true, the interaction mode only applies when the mouse position intersects an item on the chart.
 | `axis` | `string` | `'x'` | Can be set to `'x'`, `'y'`, or `'xy'` to define which directions are used in calculating distances. Defaults to `'x'` for `'index'` mode and `'xy'` in `dataset` and `'nearest'` modes.
 
@@ -17,9 +17,9 @@ Namespace: `options`
 
 | Name | Type | Default | Description
 | ---- | ---- | ------- | -----------
-| `events` | `string[]` | `['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove']` | The `events` option defines the browser events that the chart should listen to for tooltips and hovering. [more...](#event-option)
-| `onHover` | `function` | `null` | Called when any of the events fire. Passed the event, an array of active elements (bars, points, etc), and the chart.
-| `onClick` | `function` | `null` | Called if the event is of type `'mouseup'` or `'click'`. Passed the event, an array of active elements, and the chart.
+| `events` | `string[]` | `['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove']` | The `events` option defines the browser events that the chart should listen to for. Each of these events trigger hover and are passed to plugins. [more...](#event-option)
+| `onHover` | `function` | `null` | Called when any of the events fire over chartArea. Passed the event, an array of active elements (bars, points, etc), and the chart.
+| `onClick` | `function` | `null` | Called if the event is of type `'mouseup'`, `'click'` or '`'contextmenu'` over chartArea. Passed the event, an array of active elements, and the chart.
 
 ### Event Option
 
@@ -27,12 +27,32 @@ For example, to have the chart only respond to click events, you could do:
 
 ```javascript
 var chart = new Chart(ctx, {
-    type: 'line',
-    data: data,
-    options: {
-        // This chart will not respond to mousemove, etc
+  type: 'line',
+  data: data,
+  options: {
+    // This chart will not respond to mousemove, etc
+    events: ['click']
+  }
+});
+```
+
+Events for each plugin can be further limited by defining (allowed) events array in plugin options:
+
+```javascript
+var chart = new Chart(ctx, {
+  type: 'line',
+  data: data,
+  options: {
+    // All of these (default) events trigger a hover and are passed to all plugins,
+    // unless limited at plugin options
+    events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+    plugins: {
+      tooltip: {
+        // Tooltip will only receive click events
         events: ['click']
+      }
     }
+  }
 });
 ```
 

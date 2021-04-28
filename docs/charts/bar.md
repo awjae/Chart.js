@@ -53,42 +53,64 @@ module.exports = {
 };
 ```
 
-## Example Usage
-
-```javascript
-var myBarChart = new Chart(ctx, {
-    type: 'bar',
-    data: data,
-    options: options
-});
-```
-
 ## Dataset Properties
+
+Namespaces:
+
+* `data.datasets[index]` - options for this dataset only
+* `options.datasets.bar` - options for all bar datasets
+* `options.elements.bar` - options for all [bar elements](../configuration/elements.md#bar-configuration)
+* `options` - options for the whole chart
 
 The bar chart allows a number of properties to be specified for each dataset.
 These are used to set display properties for a specific dataset. For example,
 the color of the bars is generally set this way.
+Only the `data` option needs to be specified in the dataset namespace.
 
 | Name | Type | [Scriptable](../general/options.md#scriptable-options) | [Indexable](../general/options.md#indexable-options) | Default
 | ---- | ---- | :----: | :----: | ----
 | [`backgroundColor`](#styling) | [`Color`](../general/colors.md) | Yes | Yes | `'rgba(0, 0, 0, 0.1)'`
 | [`base`](#general) | `number` | Yes | Yes |
+| [`barPercentage`](#barpercentage) | `number` | - | - | `0.9` |
+| [`barThickness`](#barthickness) | `number`\|`string` | - | - | |
 | [`borderColor`](#styling) | [`Color`](../general/colors.md) | Yes | Yes | `'rgba(0, 0, 0, 0.1)'`
 | [`borderSkipped`](#borderskipped) | `string` | Yes | Yes | `'start'`
 | [`borderWidth`](#borderwidth) | `number`\|`object` | Yes | Yes | `0`
 | [`borderRadius`](#borderradius) | `number`\|`object` | Yes | Yes | `0`
-| [`clip`](#general) | `number`\|`object` | - | - | `undefined`
-| [`data`](#data-structure) | `object`\|`object[]`\|`number[]`\|`string[]` | - | - | **required**
-| [`hoverBackgroundColor`](#interactions) | [`Color`](../general/colors.md) | Yes | Yes | `undefined`
-| [`hoverBorderColor`](#interactions) | [`Color`](../general/colors.md) | Yes | Yes | `undefined`
+| [`categoryPercentage`](#categorypercentage) | `number` | - | - | `0.8` |
+| [`clip`](#general) | `number`\|`object` | - | - |
+| [`data`](#data-structure) | `object`\|`object[]`\| `number[]`\|`string[]` | - | - | **required**
+| [`grouped`](#general) | `boolean` | - | - | `true` |
+| [`hoverBackgroundColor`](#interactions) | [`Color`](../general/colors.md) | Yes | Yes |
+| [`hoverBorderColor`](#interactions) | [`Color`](../general/colors.md) | Yes | Yes |
 | [`hoverBorderWidth`](#interactions) | `number` | Yes | Yes | `1`
 | [`hoverBorderRadius`](#interactions) | `number` | Yes | Yes | `0`
 | [`indexAxis`](#general) | `string` | - | - | `'x'`
+| [`maxBarThickness`](#maxbarthickness) | `number` | - | - | |
+| [`minBarLength`](#styling) | `number` | - | - | |
 | [`label`](#general) | `string` | - | - | `''`
 | [`order`](#general) | `number` | - | - | `0`
 | [`pointStyle`](../configuration/elements.md#point-styles) | `string`\|`Image` | Yes | - | `'circle'`
+| [`skipNull`](#general) | `boolean` | - | - | |
+| [`stack`](#general) | `string` | - | - | `'bar'` |
 | [`xAxisID`](#general) | `string` | - | - | first x axis
 | [`yAxisID`](#general) | `string` | - | - | first y axis
+
+All these values, if `undefined`, fallback to the scopes described in [option resolution](../general/options)
+
+### Example dataset configuration
+
+```javascript
+data: {
+    datasets: [{
+        barPercentage: 0.5,
+        barThickness: 6,
+        maxBarThickness: 8,
+        minBarLength: 2,
+        data: [10, 20, 30, 40, 50, 60, 70]
+    }]
+};
+```
 
 ### General
 
@@ -96,9 +118,12 @@ the color of the bars is generally set this way.
 | ---- | ----
 | `base` | Base value for the bar in data units along the value axis. If not set, defaults to the value axis base value.
 | `clip` | How to clip relative to chartArea. Positive value allows overflow, negative value clips that many pixels inside chartArea. `0` = clip at chartArea. Clipping can also be configured per side: `clip: {left: 5, top: false, right: -2, bottom: 0}`
+| `grouped` | Should the bars be grouped on index axis. When `true`, all the datasets at same index value will be placed next to each other centering on that index value. When `false`, each bar is placed on its actual index-axis value.
 | `indexAxis` | The base axis of the dataset. `'x'` for vertical bars and `'y'` for horizontal bars.
 | `label` | The label for the dataset which appears in the legend and tooltips.
 | `order` | The drawing order of dataset. Also affects order for stacking, tooltip, and legend.
+| `skipNull` | If `true`, null or undefined values will not be used for spacing calculations when determining bar size.
+| `stack` | The ID of the group to which this dataset belongs to (when stacked, each group will be a separate stack). [more](#stacked-bar-charts)
 | `xAxisID` | The ID of the x-axis to plot this dataset on.
 | `yAxisID` | The ID of the y-axis to plot this dataset on.
 
@@ -113,6 +138,7 @@ The style of each bar can be controlled with the following properties:
 | [`borderSkipped`](#borderskipped) | The edge to skip when drawing bar.
 | [`borderWidth`](#borderwidth) | The bar border width (in pixels).
 | [`borderRadius`](#borderradius) | The bar border radius (in pixels).
+| `minBarLength` | Set this to ensure that bars have a minimum length in pixels.
 | `pointStyle` | Style of the point for legend. [more...](../configuration/elements.md#point-styles)
 
 All these values, if `undefined`, fallback to the associated [`elements.bar.*`](../configuration/elements.md#bar-configuration) options.
@@ -145,6 +171,10 @@ If this value is a number, it is applied to all sides of the rectangle (left, to
 
 If this value is a number, it is applied to all corners of the rectangle (topLeft, topRight, bottomLeft, bottomRight), except corners touching the [`borderSkipped`](#borderskipped). If this value is an object, the `topLeft` property defines the top-left corners border radius. Similarly, the `topRight`, `bottomLeft`, and `bottomRight` properties can also be specified. Omitted corners and those touching the [`borderSkipped`](#borderskipped) are skipped. For example if the `top` border is skipped, the border radius for the corners `topLeft` and `topRight` will be skipped as well.
 
+:::tip Stacked Charts
+When the border radius is supplied as a number and the chart is stacked, the radius will only be applied to the bars that are at the edges of the stack or where the bar is floating. The object syntax can be used to override this behavior.
+:::
+
 ### Interactions
 
 The interaction with each bar can be controlled with the following properties:
@@ -158,33 +188,13 @@ The interaction with each bar can be controlled with the following properties:
 
 All these values, if `undefined`, fallback to the associated [`elements.bar.*`](../configuration/elements.md#bar-configuration) options.
 
-## Dataset Configuration
+### barPercentage
 
-The bar chart accepts the following configuration from the associated dataset options:
+Percent (0-1) of the available width each bar should be within the category width. 1.0 will take the whole category width and put the bars right next to each other. [more...](#barpercentage-vs-categorypercentage)
 
-| Name | Type | Default | Description
-| ---- | ---- | ------- | -----------
-| `barPercentage` | `number` | `0.9` | Percent (0-1) of the available width each bar should be within the category width. 1.0 will take the whole category width and put the bars right next to each other. [more...](#barpercentage-vs-categorypercentage)
-| `categoryPercentage` | `number` | `0.8` | Percent (0-1) of the available width each category should be within the sample width. [more...](#barpercentage-vs-categorypercentage)
-| `barThickness` | `number`\|`string` | | Manually set width of each bar in pixels. If set to `'flex'`, it computes "optimal" sample widths that globally arrange bars side by side. If not set (default), bars are equally sized based on the smallest interval. [more...](#barthickness)
-| `base` | `number` | | Base value for the bar in data units along the value axis. If not set, defaults to the value axis base value.
-| `grouped` | `boolean` | `true` | Should the bars be grouped on index axis. When `true`, all the datasets at same index value will be placed next to each other centering on that index value. When `false`, each bar is placed on its actual index-axis value.
-| `maxBarThickness` | `number` | | Set this to ensure that bars are not sized thicker than this.
-| `minBarLength` | `number` | | Set this to ensure that bars have a minimum length in pixels.
+### categoryPercentage
 
-### Example dataset configuration
-
-```javascript
-data: {
-    datasets: [{
-        barPercentage: 0.5,
-        barThickness: 6,
-        maxBarThickness: 8,
-        minBarLength: 2,
-        data: [10, 20, 30, 40, 50, 60, 70]
-    }]
-};
-```
+Percent (0-1) of the available width each category should be within the sample width. [more...](#barpercentage-vs-categorypercentage)
 
 ### barThickness
 
@@ -194,13 +204,9 @@ If set to `'flex'`, the base sample widths are calculated automatically based on
 
 If not set (default), the base sample widths are calculated using the smallest interval that prevents bar overlapping, and bars are sized using `barPercentage` and `categoryPercentage`. This mode always generates bars equally sized.
 
-## Config Options
+### maxBarThickness
 
-These are the customisation options specific to Bar charts. These options are looked up on access, and form together with the global chart configuration, `Chart.defaults`, the options of the chart.
-
-| Name | Type | Default | Description
-| ---- | ---- | ------- | -----------
-| `skipNull` | `boolean` | `undefined` | If `true`, null or undefined values will not be drawn
+Set this to ensure that bars are not sized thicker than this.
 
 ## Scale Configuration
 
@@ -237,7 +243,7 @@ It is common to want to apply a configuration setting to all created bar charts.
 
 The following shows the relationship between the bar percentage option and the category percentage option.
 
-```text
+```
 // categoryPercentage: 1.0
 // barPercentage: 1.0
 Bar:        | 1.0 | 1.0 |
@@ -281,12 +287,6 @@ var stackedBar = new Chart(ctx, {
     }
 });
 ```
-
-The following dataset properties are specific to stacked bar charts.
-
-| Name | Type | Description
-| ---- | ---- | -----------
-| `stack` | `string` | The ID of the group to which this dataset belongs to (when stacked, each group will be a separate stack).
 
 ## Horizontal Bar Chart
 

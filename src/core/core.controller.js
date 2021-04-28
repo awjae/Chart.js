@@ -7,7 +7,7 @@ import PluginService from './core.plugins';
 import registry from './core.registry';
 import Config, {determineAxis, getIndexAxis} from './core.config';
 import {retinaScale} from '../helpers/helpers.dom';
-import {each, callback as callCallback, uid, valueOrDefault, _elementsEqual, isNullOrUndef} from '../helpers/helpers.core';
+import {each, callback as callCallback, uid, valueOrDefault, _elementsEqual, isNullOrUndef, setsEqual} from '../helpers/helpers.core';
 import {clearCanvas, clipArea, unclipArea, _isPointInArea} from '../helpers/helpers.canvas';
 // @ts-ignore
 import {version} from '../../package.json';
@@ -479,6 +479,15 @@ class Chart {
 
     me.ensureScalesHaveIDs();
     me.buildOrUpdateScales();
+
+    const existingEvents = new Set(Object.keys(me._listeners));
+    const newEvents = new Set(me.options.events);
+
+    if (!setsEqual(existingEvents, newEvents)) {
+      // The events array has changed. Rebind it
+      me.unbindEvents();
+      me.bindEvents();
+    }
 
     // plugins options references might have change, let's invalidate the cache
     // https://github.com/chartjs/Chart.js/issues/5111#issuecomment-355934167
@@ -953,7 +962,7 @@ class Chart {
       return;
     }
 
-    delete me._listeners;
+    me._listeners = {};
     each(listeners, (listener, type) => {
       me.platform.removeEventListener(me, type, listener);
     });
@@ -1018,10 +1027,11 @@ class Chart {
 	 * returned value can be used, for instance, to interrupt the current action.
 	 * @param {string} hook - The name of the plugin method to call (e.g. 'beforeUpdate').
 	 * @param {Object} [args] - Extra arguments to apply to the hook call.
+   * @param {import('./core.plugins').filterCallback} [filter] - Filtering function for limiting which plugins are notified
 	 * @returns {boolean} false if any of the plugins return false, else returns true.
 	 */
-  notifyPlugins(hook, args) {
-    return this._plugins.notify(this, hook, args);
+  notifyPlugins(hook, args, filter) {
+    return this._plugins.notify(this, hook, args, filter);
   }
 
   /**
@@ -1049,15 +1059,16 @@ class Chart {
   _eventHandler(e, replay) {
     const me = this;
     const args = {event: e, replay, cancelable: true};
+    const eventFilter = (plugin) => (plugin.options.events || this.options.events).includes(e.type);
 
-    if (me.notifyPlugins('beforeEvent', args) === false) {
+    if (me.notifyPlugins('beforeEvent', args, eventFilter) === false) {
       return;
     }
 
     const changed = me._handleEvent(e, replay);
 
     args.cancelable = false;
-    me.notifyPlugins('afterEvent', args);
+    me.notifyPlugins('afterEvent', args, eventFilter);
 
     if (changed || args.changed) {
       me.render();
@@ -1106,11 +1117,11 @@ class Chart {
     // This prevents recursion if the handler calls chart.update()
     me._lastEvent = null;
 
-    // Invoke onHover hook
-    callCallback(options.onHover, [e, active, me], me);
+    if (_isPointInArea(e, me.chartArea, me._minPadding)) {
+      // Invoke onHover hook
+      callCallback(options.onHover, [e, active, me], me);
 
-    if (e.type === 'mouseup' || e.type === 'click' || e.type === 'contextmenu') {
-      if (_isPointInArea(e, me.chartArea, me._minPadding)) {
+      if (e.type === 'mouseup' || e.type === 'click' || e.type === 'contextmenu') {
         callCallback(options.onClick, [e, active, me], me);
       }
     }

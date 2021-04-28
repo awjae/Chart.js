@@ -20,7 +20,7 @@ Chart.js 3.0 introduces a number of breaking changes. Chart.js 2.0 was released 
 * Chart.js is no longer providing the `Chart.bundle.js` and `Chart.bundle.min.js`. Please see the [installation](installation.md) and [integration](integration.md) docs for details on the recommended way to setup Chart.js if you were using these builds.
 * `moment` is no longer specified as an npm dependency. If you are using the `time` or `timeseries` scales, you must include one of [the available adapters](https://github.com/chartjs/awesome#adapters) and corresponding date library. You no longer need to exclude moment from your build.
 * The `Chart` constructor will throw an error if the canvas/context provided is already in use
-* Chart.js 3 is tree-shakeable. So if you are using it as an `npm` module in a project and want to make use of this feature, you need to import and register the controllers, elements, scales and plugins you want to use. You will not have to call `register` if importing Chart.js via a `script` tag or from the [`auto`](integration.md#bundlers-webpack-rollup-etc) register path as an `npm` module, in this case you will not get the tree shaking benefits. Here is an example of registering components:
+* Chart.js 3 is tree-shakeable. So if you are using it as an `npm` module in a project and want to make use of this feature, you need to import and register the controllers, elements, scales and plugins you want to use, for a list of all the available items to import see [integration](integration.md#bundlers-webpack-rollup-etc). You will not have to call `register` if importing Chart.js via a `script` tag or from the [`auto`](integration.md#bundlers-webpack-rollup-etc) register path as an `npm` module, in this case you will not get the tree shaking benefits. Here is an example of registering components:
 
 ```javascript
 import { Chart, LineController, LineElement, PointElement, LinearScale, Title } from `chart.js`
@@ -51,7 +51,7 @@ const chart = new Chart(ctx, {
 
 ### Chart types
 
-* `horizontalBar` chart type was removed. Horizontal bar charts can be configured using the new [`indexAxis`](./charts/bar.mdx#horizontal-bar-chart) option
+* `horizontalBar` chart type was removed. Horizontal bar charts can be configured using the new [`indexAxis`](../charts/bar.md#horizontal-bar-chart) option
 
 ### Options
 
@@ -61,10 +61,10 @@ A number of changes were made to the configuration options passed to the `Chart`
 
 * Indexable options are now looping. `backgroundColor: ['red', 'green']` will result in alternating `'red'` / `'green'` if there are more than 2 data points.
 * The input properties of object data can now be freely specified, see [data structures](../general/data-structures.md) for details.
-* Most options are resolved utilizing proxies, instead merging with defaults. In addition to easily enabling different resolution routes for different contexts, it allows using other resolved options in scriptable options.
+* Most options are resolved utilizing proxies, instead of merging with defaults. In addition to easily enabling different resolution routes for different contexts, it allows using other resolved options in scriptable options.
   * Options are by default scriptable and indexable, unless disabled for some reason.
-  * Scriptable options receive a option reolver as second parameter for accessing other options in same context.
-  * Resolution falls to upper scopes, if no match is found earlier. See [options](./general/options.md) for details.
+  * Scriptable options receive a option resolver as second parameter for accessing other options in same context.
+  * Resolution falls to upper scopes, if no match is found earlier. See [options](../general/options.md) for details.
 
 #### Specific changes
 
@@ -147,7 +147,7 @@ options: {
         font: function(context) {
           if (context.tick && context.tick.major) {
             return {
-              style: 'bold',
+              weight: 'bold',
               color: '#FF0000'
             };
           }
@@ -186,7 +186,7 @@ options: {
         font: function(context) {
           if (context.tick && context.tick.major) {
             return {
-              style: 'bold'
+              weight: 'bold'
             };
           }
         }
@@ -208,7 +208,7 @@ options: {
 
 #### Animations
 
-Animation system was completely rewritten in Chart.js v3. Each property can now be animated separately. Please see [animations](../configuration/animations.mdx) docs for details.
+Animation system was completely rewritten in Chart.js v3. Each property can now be animated separately. Please see [animations](../configuration/animations.md) docs for details.
 
 #### Customizability
 
